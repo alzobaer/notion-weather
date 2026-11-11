@@ -1,199 +1,150 @@
-{# Licensed under the Apache License: http://www.apache.org/licenses/LICENSE-2.0 #}
-{# For details: https://github.com/coveragepy/coveragepy/blob/main/NOTICE.txt #}
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>{{ title|escape }}</title>
-    <link rel="icon" sizes="32x32" href="{{ statics.favicon_32_png }}">
-    <link rel="stylesheet" href="{{ statics.style_css }}" type="text/css">
-    {% if extra_css %}
-        <link rel="stylesheet" href="{{ statics.extra_css }}" type="text/css">
-    {% endif %}
-    <script src="{{ statics.coverage_html_js }}" defer></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hamamatsu Weather</title>
+<!-- Notion weather widget. Data: Open-Meteo (free, no key).
+     URL options: ?theme=dark|light (default: follows the system)
+                  &name=Hamamatsu&lat=34.71&lon=137.73 -->
+<style>
+  :root {            /* light: matches Notion light pages */
+    --bg: #ffffff; --card: #f7f7f5; --ink: #37352f; --muted: #787774;
+    --line: #e9e9e7; --accent: #2e7d6b; --rain: #2f80ed;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #191919; --card: #202020; --ink: #e6e6e4; --muted: #9b9a97;
+      --line: #2f2f2f; --accent: #5fc4a8; --rain: #6aa9ff;
+    }
+  }
+  :root[data-theme="dark"] {   /* matches Notion dark pages */
+    --bg: #191919; --card: #202020; --ink: #e6e6e4; --muted: #9b9a97;
+    --line: #2f2f2f; --accent: #5fc4a8; --rain: #6aa9ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
+    font: 13px/1.3 "Segoe UI", system-ui, -apple-system, "Hiragino Sans", sans-serif; }
+  /* the card fills the whole embed height; the 7 day rows share the space */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px 8px; max-width: 380px; margin: 0 auto; height: 100%;
+    display: flex; flex-direction: column; }
+  .days { flex: 1; display: flex; flex-direction: column; }
+  .days li { flex: 1; min-height: 24px; }
+  .top { display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  /* clock on the left, current weather on the right */
+  .now { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 6px 0 8px; border-bottom: 1px solid var(--line); }
+  .clock { border-right: 1px solid var(--line); padding-right: 12px; }
+  .clock .hm { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .clock .ss { font-size: 14px; color: var(--muted); font-weight: 400; }
+  .clock .dt { font-size: 11px; color: var(--muted); }
+  .wx { text-align: right; }
+  .wx .row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
+  .now .ic { font-size: 24px; line-height: 1; }
+  .now .tp { font-size: 26px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .now .cd { color: var(--muted); font-size: 11px; }
+  .days { list-style: none; margin: 0; padding: 2px 0 0; }
+  .days li { display: grid; grid-template-columns: 3.4em 1.8em 1fr auto; align-items: center; gap: 6px;
+    border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .days li:last-child { border-bottom: 0; }
+  .d { font-weight: 600; }
+  .i { font-size: 17px; text-align: center; }
+  .p { font-size: 11px; color: var(--rain); }
+  .t { white-space: nowrap; }
+  .t .lo { color: var(--muted); }
+  .foot { text-align: right; font-size: 10px; color: var(--muted); padding-top: 4px; }
+  .foot a { color: var(--muted); text-decoration: none; }
+</style>
 </head>
-<body class="indexfile">
-
-<header>
-    <div class="content">
-        <h1>{{ title|escape }}:
-            <span class="pc_cov">{{totals.pc_covered_str}}%</span>
-        </h1>
-
-        <aside id="help_panel_wrapper">
-            <input id="help_panel_state" type="checkbox">
-            <label for="help_panel_state">
-                <img id="keyboard_icon" src="{{ statics.keybd_closed_png }}" alt="Show/hide keyboard shortcuts">
-            </label>
-            <div id="help_panel">
-                <p class="legend">Shortcuts on this page</p>
-                <div class="keyhelp">
-                    <p>
-                        <kbd>f</kbd>
-                        {% if region_noun %}
-                        <kbd>n</kbd>
-                        {% endif %}
-                        <kbd>s</kbd>
-                        <kbd>m</kbd>
-                        <kbd>x</kbd>
-                        {% if has_arcs %}
-                        <kbd>b</kbd>
-                        <kbd>p</kbd>
-                        {% endif %}
-                        <kbd>c</kbd>
-                        &nbsp; change column sorting
-                    </p>
-                    <p>
-                        <kbd>[</kbd>
-                        <kbd>]</kbd>
-                        &nbsp; prev/next file
-                    </p>
-                    <p>
-                        <kbd>?</kbd> &nbsp; show/hide this help
-                    </p>
-                </div>
-            </div>
-        </aside>
-
-        <form id="filter_container">
-            <input id="filter" type="text" value="" placeholder="filter...">
-            <div>
-                <input id="hide100" type="checkbox" {% if skip_covered %}checked disabled {% endif %}>
-                <label for="hide100">hide covered</label>
-            </div>
-        </form>
-
-        <h2>
-            {% for ibtn in index_buttons %}
-                <a class="button{% if ibtn.current %} current{% endif %}"{% if ibtn.url %} href="{{ ibtn.url }}"{% endif %}>{{ ibtn.label }}</a>{#-#}
-            {% endfor %}
-        </h2>
-
-        <p class="text">
-            <a class="nav" href="{{__url__}}">coverage.py v{{__version__}}</a>,
-            created at {{ time_stamp }}
-        </p>
+<body>
+<div class="card">
+  <div class="top"><span id="place">Hamamatsu</span><span>Updated <span id="upd">–</span></span></div>
+  <div class="now">
+    <div class="clock">
+      <div class="hm"><span id="hm">--:--</span><span class="ss" id="ss">:--</span></div>
+      <div class="dt" id="dt">&nbsp;</div>
     </div>
-</header>
-
-<main id="index">
-    <table class="index" data-sortable>
-        <thead>
-            {# The title="" attr doesn't work in Safari. #}
-            {% if has_arcs %}
-            <tr class="tablehead grouphead">
-                <th class="spacer">&nbsp;</th>
-                {% if region_noun %}
-                <th class="spacer">&nbsp;</th>
-                {% endif %}
-                <th class="spacer">&nbsp;</th>
-                <th class="left" colspan="{% if has_arcs %}4{% else %}3{% endif %}">Statements</th>
-                <th class="spacer">&nbsp;</th>
-                <th class="left" colspan="3">Branches</th>
-                <th class="spacer">&nbsp;</th>
-                <th>Total</th>
-            </tr>
-            {% endif %}
-            <tr class="tablehead" title="Click to sort">
-                <th id="file" class="name" aria-sort="none" data-shortcut="f">File<span class="arrows"></span></th>
-                {% if region_noun %}
-                <th id="region" class="name" aria-sort="none" data-default-sort-order="ascending" data-shortcut="n">{{ region_noun }}<span class="arrows"></span></th>
-                {% endif %}
-                <th class="spacer">&nbsp;</th>
-                {% if has_arcs %}
-                <th id="statements_coverage" aria-sort="none" data-default-sort-order="descending">coverage<span class="arrows"></span></th>
-                {% endif %}
-                <th id="statements" aria-sort="none" data-default-sort-order="descending" data-shortcut="s">statements<span class="arrows"></span></th>
-                <th id="missing" aria-sort="none" data-default-sort-order="descending" data-shortcut="m">missing<span class="arrows"></span></th>
-                <th id="excluded" aria-sort="none" data-default-sort-order="descending" data-shortcut="x">excluded<span class="arrows"></span></th>
-                {% if has_arcs %}
-                <th class="spacer">&nbsp;</th>
-                <th id="branches_coverage" aria-sort="none" data-default-sort-order="descending">coverage<span class="arrows"></span></th>
-                <th id="branches" aria-sort="none" data-default-sort-order="descending" data-shortcut="b">branches<span class="arrows"></span></th>
-                <th id="partial" aria-sort="none" data-default-sort-order="descending" data-shortcut="p">partial<span class="arrows"></span></th>
-                {% endif %}
-                <th class="spacer">&nbsp;</th>
-                <th id="coverage" aria-sort="none" data-shortcut="c">coverage<span class="arrows"></span></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for region in regions %}
-            <tr class="region">
-                <td class="name"><a href="{{region.url|escape}}">{{region.file|escape|pretty_file}}</a></td>
-                {% if region_noun %}
-                <td class="name"><a href="{{region.url|escape}}">{{region.description}}</a></td>
-                {% endif %}
-                <td class="spacer">&nbsp;</td>
-                {% if has_arcs %}
-                <td data-ratio="{{region.nums.ratio_statements|pair}}">{{region.nums.pc_statements_str}}%</td>
-                {% endif %}
-                <td>{{region.nums.n_statements}}</td>
-                <td>{{region.nums.n_missing}}</td>
-                <td>{{region.nums.n_excluded}}</td>
-                {% if has_arcs %}
-                <td class="spacer">&nbsp;</td>
-                <td data-ratio="{{region.nums.ratio_branches|pair}}">{{region.nums.pc_branches_str}}%</td>
-                <td>{{region.nums.n_branches}}</td>
-                <td>{{region.nums.n_partial_branches}}</td>
-                {% endif %}
-                <td class="spacer">&nbsp;</td>
-                <td data-ratio="{{region.nums.ratio_covered|pair}}">{{region.nums.pc_covered_str}}%</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        <tfoot>
-            <tr class="total">
-                <td class="name">Total</td>
-                {% if region_noun %}
-                <td class="name">&nbsp;</td>
-                {% endif %}
-                <td class="spacer">&nbsp;</td>
-                {% if has_arcs %}
-                <td data-ratio="{{totals.ratio_statements|pair}}">{{totals.pc_statements_str}}%</td>
-                {% endif %}
-                <td>{{totals.n_statements}}</td>
-                <td>{{totals.n_missing}}</td>
-                <td>{{totals.n_excluded}}</td>
-                {% if has_arcs %}
-                <td class="spacer">&nbsp;</td>
-                <td data-ratio="{{totals.ratio_branches|pair}}">{{totals.pc_branches_str}}%</td>
-                <td>{{totals.n_branches}}</td>
-                <td>{{totals.n_partial_branches}}</td>
-                {% endif %}
-                <td class="spacer">&nbsp;</td>
-                <td data-ratio="{{totals.ratio_covered|pair}}">{{totals.pc_covered_str}}%</td>
-            </tr>
-        </tfoot>
-    </table>
-
-    <p id="no_rows">
-        No items found using the specified filter.
-    </p>
-
-    {% if skipped_covered_msg %}
-        <p>{{ skipped_covered_msg }}</p>
-    {% endif %}
-    {% if skipped_empty_msg %}
-        <p>{{ skipped_empty_msg }}</p>
-    {% endif %}
-</main>
-
-<footer>
-    <div class="content">
-        <p>
-            <a class="nav" href="{{__url__}}">coverage.py v{{__version__}}</a>,
-            created at {{ time_stamp }}
-        </p>
+    <div class="wx">
+      <div class="row"><span class="ic" id="nowIcon">·</span><span class="tp" id="nowTemp">--</span></div>
+      <div class="cd" id="nowCond">Loading…</div>
     </div>
-    <aside class="hidden">
-        <a id="prevFileLink" class="nav" href="{{ final_html|escape }}"></a>
-        <a id="nextFileLink" class="nav" href="{{ first_html|escape }}"></a>
-        <button type="button" class="button_prev_file" data-shortcut="["></button>
-        <button type="button" class="button_next_file" data-shortcut="]"></button>
-        <button type="button" class="button_show_hide_help" data-shortcut="?"></button>
-    </aside>
-</footer>
+  </div>
+  <ul class="days" id="days"></ul>
+  <div class="foot"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  if (q.get("theme") === "dark" || q.get("theme") === "light") document.documentElement.dataset.theme = q.get("theme");
+  const NAME = q.get("name") || "Hamamatsu";
+  const LAT = q.get("lat") || "34.71", LON = q.get("lon") || "137.73";
+  const W = {
+    0:["☀️","🌙","Clear sky"], 1:["🌤️","🌙","Mainly clear"], 2:["⛅","☁️","Partly cloudy"], 3:["☁️","☁️","Overcast"],
+    45:["🌫️","🌫️","Fog"], 48:["🌫️","🌫️","Rime fog"],
+    51:["🌦️","🌧️","Light drizzle"], 53:["🌦️","🌧️","Drizzle"], 55:["🌧️","🌧️","Heavy drizzle"],
+    56:["🌧️","🌧️","Freezing drizzle"], 57:["🌧️","🌧️","Freezing drizzle"],
+    61:["🌦️","🌧️","Light rain"], 63:["🌧️","🌧️","Rain"], 65:["🌧️","🌧️","Heavy rain"],
+    66:["🌧️","🌧️","Freezing rain"], 67:["🌧️","🌧️","Freezing rain"],
+    71:["🌨️","🌨️","Light snow"], 73:["🌨️","🌨️","Snow"], 75:["❄️","❄️","Heavy snow"], 77:["🌨️","🌨️","Snow grains"],
+    80:["🌦️","🌧️","Rain showers"], 81:["🌧️","🌧️","Rain showers"], 82:["⛈️","⛈️","Violent showers"],
+    85:["🌨️","🌨️","Snow showers"], 86:["🌨️","🌨️","Snow showers"],
+    95:["⛈️","⛈️","Thunderstorm"], 96:["⛈️","⛈️","Thunderstorm, hail"], 99:["⛈️","⛈️","Thunderstorm, hail"]
+  };
+  const w = c => W[c] || ["🌡️","🌡️","—"];
+  const r = n => Math.round(n) + "°";
 
+  async function load() {
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
+      "&current=temperature_2m,weather_code,is_day" +
+      "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+      "&timezone=Asia%2FTokyo&forecast_days=7";
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status);
+      const j = await res.json();
+      const c = j.current, cw = w(c.weather_code);
+      document.getElementById("place").textContent = NAME;
+      document.getElementById("nowIcon").textContent = c.is_day ? cw[0] : cw[1];
+      document.getElementById("nowTemp").textContent = Math.round(c.temperature_2m) + " °C";
+      document.getElementById("nowCond").textContent = cw[2];
+      const ul = document.getElementById("days"); ul.textContent = "";
+      j.daily.time.forEach((t, k) => {
+        const day = new Date(t + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
+        const pp = j.daily.precipitation_probability_max[k];
+        const li = document.createElement("li");
+        li.innerHTML = '<span class="d"></span><span class="i"></span><span class="p"></span>' +
+          '<span class="t"><span class="hi"></span> <span class="lo"></span></span>';
+        li.querySelector(".d").textContent = k === 0 ? "Today" : day;
+        li.querySelector(".i").textContent = w(j.daily.weather_code[k])[0];
+        li.querySelector(".i").title = w(j.daily.weather_code[k])[2];
+        li.querySelector(".p").textContent = pp != null ? "💧" + pp + "%" : "";
+        li.querySelector(".hi").textContent = r(j.daily.temperature_2m_max[k]);
+        li.querySelector(".lo").textContent = "/ " + r(j.daily.temperature_2m_min[k]);
+        ul.appendChild(li);
+      });
+      document.getElementById("upd").textContent =
+        new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    } catch (e) {
+      document.getElementById("nowCond").textContent = "Weather unavailable, retrying soon";
+    }
+  }
+  // live clock in Japan time
+  function tick() {
+    const now = new Date();
+    const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit",
+      second: "2-digit", hour12: false }).formatToParts(now);
+    const g = t => p.find(x => x.type === t).value;
+    document.getElementById("hm").textContent = g("hour") + ":" + g("minute");
+    document.getElementById("ss").textContent = ":" + g("second");
+    document.getElementById("dt").textContent = now.toLocaleDateString("en-US",
+      { timeZone: "Asia/Tokyo", weekday: "short", month: "short", day: "numeric" });
+  }
+  tick();
+  setInterval(tick, 1000);
+
+  load();
+  setInterval(load, 30 * 60 * 1000);
+</script>
 </body>
 </html>
