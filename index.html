@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hamamatsu Weather</title>
+<!-- Notion weather widget. Data: Open-Meteo (free, no key). Override place with
+     ?name=Hamamatsu&lat=34.71&lon=137.73 -->
+<style>
+  :root {
+    --bg: #eef3ec;
+    --ink: #1f6b5c;
+    --muted: #5f8a80;
+    --line: #d7e3d3;
+    --rain: #4f8fd6;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, "Hiragino Sans", sans-serif; }
+  .wrap { max-width: 360px; margin: 0 auto; padding: 18px 16px 12px; }
+  .now { text-align: center; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .place { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .icon-big { font-size: 44px; line-height: 1.2; }
+  .temp { font-size: 34px; font-weight: 600; }
+  .cond { font-size: 15px; }
+  .days { list-style: none; margin: 0; padding: 6px 0 0; }
+  .days li { display: grid; grid-template-columns: 3.2em 2.2em 1fr auto; align-items: center;
+    gap: 8px; padding: 9px 2px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  .days li:last-child { border-bottom: 0; }
+  .d { font-weight: 600; letter-spacing: .03em; }
+  .i { font-size: 22px; text-align: center; }
+  .p { font-size: 12px; color: var(--rain); }
+  .t { text-align: right; line-height: 1.25; }
+  .t .lo { color: var(--muted); }
+  .foot { text-align: center; font-size: 11px; color: var(--muted); padding-top: 8px; }
+  .foot a { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="now">
+    <div class="place" id="place">Hamamatsu</div>
+    <div class="icon-big" id="nowIcon">·</div>
+    <div class="temp" id="nowTemp">--</div>
+    <div class="cond" id="nowCond">Loading…</div>
+  </div>
+  <ul class="days" id="days"></ul>
+  <div class="foot">Updated <span id="upd">–</span> · <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const NAME = q.get("name") || "Hamamatsu";
+  const LAT = q.get("lat") || "34.71", LON = q.get("lon") || "137.73";
+  // WMO weather codes -> [day icon, night icon, text]
+  const W = {
+    0:["☀️","🌙","Clear sky"], 1:["🌤️","🌙","Mainly clear"], 2:["⛅","☁️","Partly cloudy"], 3:["☁️","☁️","Overcast"],
+    45:["🌫️","🌫️","Fog"], 48:["🌫️","🌫️","Rime fog"],
+    51:["🌦️","🌧️","Light drizzle"], 53:["🌦️","🌧️","Drizzle"], 55:["🌧️","🌧️","Heavy drizzle"],
+    56:["🌧️","🌧️","Freezing drizzle"], 57:["🌧️","🌧️","Freezing drizzle"],
+    61:["🌦️","🌧️","Light rain"], 63:["🌧️","🌧️","Rain"], 65:["🌧️","🌧️","Heavy rain"],
+    66:["🌧️","🌧️","Freezing rain"], 67:["🌧️","🌧️","Freezing rain"],
+    71:["🌨️","🌨️","Light snow"], 73:["🌨️","🌨️","Snow"], 75:["❄️","❄️","Heavy snow"], 77:["🌨️","🌨️","Snow grains"],
+    80:["🌦️","🌧️","Rain showers"], 81:["🌧️","🌧️","Rain showers"], 82:["⛈️","⛈️","Violent showers"],
+    85:["🌨️","🌨️","Snow showers"], 86:["🌨️","🌨️","Snow showers"],
+    95:["⛈️","⛈️","Thunderstorm"], 96:["⛈️","⛈️","Thunderstorm, hail"], 99:["⛈️","⛈️","Thunderstorm, hail"]
+  };
+  const w = c => W[c] || ["🌡️","🌡️","—"];
+  const r = n => Math.round(n) + " °C";
+
+  async function load() {
+    const url = "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
+      "&current=temperature_2m,weather_code,is_day" +
+      "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+      "&timezone=Asia%2FTokyo&forecast_days=7";
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(res.status);
+      const j = await res.json();
+      const c = j.current, cw = w(c.weather_code);
+      document.getElementById("place").textContent = NAME;
+      document.getElementById("nowIcon").textContent = c.is_day ? cw[0] : cw[1];
+      document.getElementById("nowTemp").textContent = r(c.temperature_2m);
+      document.getElementById("nowCond").textContent = cw[2];
+      const ul = document.getElementById("days"); ul.textContent = "";
+      j.daily.time.forEach((t, k) => {
+        const day = new Date(t + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
+        const li = document.createElement("li");
+        const pp = j.daily.precipitation_probability_max[k];
+        li.innerHTML = '<span class="d"></span><span class="i"></span><span class="p"></span>' +
+          '<span class="t"><div class="hi"></div><div class="lo"></div></span>';
+        li.querySelector(".d").textContent = k === 0 ? "Today" : day;
+        li.querySelector(".i").textContent = w(j.daily.weather_code[k])[0];
+        li.querySelector(".i").title = w(j.daily.weather_code[k])[2];
+        li.querySelector(".p").textContent = pp != null ? "💧 " + pp + "%" : "";
+        li.querySelector(".hi").textContent = r(j.daily.temperature_2m_max[k]);
+        li.querySelector(".lo").textContent = r(j.daily.temperature_2m_min[k]);
+        ul.appendChild(li);
+      });
+      document.getElementById("upd").textContent =
+        new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    } catch (e) {
+      document.getElementById("nowCond").textContent = "Weather unavailable, retrying soon";
+    }
+  }
+  load();
+  setInterval(load, 30 * 60 * 1000);
+</script>
+</body>
+</html>
