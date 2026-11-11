@@ -4,81 +4,54 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hamamatsu Weather</title>
-<!-- Notion weather widget. Data: Open-Meteo (free, no key).
-     URL options: ?theme=dark|light (default: follows the system)
-                  &name=Hamamatsu&lat=34.71&lon=137.73 -->
+<!-- Notion weather widget. Data: Open-Meteo (free, no key). Override place with
+     ?name=Hamamatsu&lat=34.71&lon=137.73 -->
 <style>
-  :root {            /* light: matches Notion light pages */
-    --bg: #ffffff; --card: #f7f7f5; --ink: #37352f; --muted: #787774;
-    --line: #e9e9e7; --accent: #2e7d6b; --rain: #2f80ed;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #191919; --card: #202020; --ink: #e6e6e4; --muted: #9b9a97;
-      --line: #2f2f2f; --accent: #5fc4a8; --rain: #6aa9ff;
-    }
-  }
-  :root[data-theme="dark"] {   /* matches Notion dark pages */
-    --bg: #191919; --card: #202020; --ink: #e6e6e4; --muted: #9b9a97;
-    --line: #2f2f2f; --accent: #5fc4a8; --rain: #6aa9ff;
+  :root {
+    --bg: #eef3ec;
+    --ink: #1f6b5c;
+    --muted: #5f8a80;
+    --line: #d7e3d3;
+    --rain: #4f8fd6;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink);
-    font: 13px/1.3 "Segoe UI", system-ui, -apple-system, "Hiragino Sans", sans-serif; }
-  /* the card fills the whole embed height; the 7 day rows share the space */
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 12px 8px; max-width: 380px; margin: 0 auto; height: 100%;
-    display: flex; flex-direction: column; }
-  .days { flex: 1; display: flex; flex-direction: column; }
-  .days li { flex: 1; min-height: 24px; }
-  .top { display: flex; justify-content: space-between; align-items: baseline;
-    font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-  /* clock on the left, current weather on the right */
-  .now { display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    padding: 6px 0 8px; border-bottom: 1px solid var(--line); }
-  .clock { border-right: 1px solid var(--line); padding-right: 12px; }
-  .clock .hm { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
-  .clock .ss { font-size: 14px; color: var(--muted); font-weight: 400; }
-  .clock .dt { font-size: 11px; color: var(--muted); }
-  .wx { text-align: right; }
-  .wx .row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; }
-  .now .ic { font-size: 24px; line-height: 1; }
-  .now .tp { font-size: 26px; font-weight: 600; color: var(--accent); font-variant-numeric: tabular-nums; line-height: 1.1; }
-  .now .cd { color: var(--muted); font-size: 11px; }
-  .days { list-style: none; margin: 0; padding: 2px 0 0; }
-  .days li { display: grid; grid-template-columns: 3.4em 1.8em 1fr auto; align-items: center; gap: 6px;
-    border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, "Hiragino Sans", sans-serif; }
+  .wrap { max-width: 360px; margin: 0 auto; padding: 18px 16px 12px; }
+  .now { text-align: center; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .place { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .icon-big { font-size: 44px; line-height: 1.2; }
+  .temp { font-size: 34px; font-weight: 600; }
+  .cond { font-size: 15px; }
+  .days { list-style: none; margin: 0; padding: 6px 0 0; }
+  .days li { display: grid; grid-template-columns: 3.2em 2.2em 1fr auto; align-items: center;
+    gap: 8px; padding: 9px 2px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
   .days li:last-child { border-bottom: 0; }
-  .d { font-weight: 600; }
-  .i { font-size: 17px; text-align: center; }
-  .p { font-size: 11px; color: var(--rain); }
-  .t { white-space: nowrap; }
+  .d { font-weight: 600; letter-spacing: .03em; }
+  .i { font-size: 22px; text-align: center; }
+  .p { font-size: 12px; color: var(--rain); }
+  .t { text-align: right; line-height: 1.25; }
   .t .lo { color: var(--muted); }
-  .foot { text-align: right; font-size: 10px; color: var(--muted); padding-top: 4px; }
-  .foot a { color: var(--muted); text-decoration: none; }
+  .foot { text-align: center; font-size: 11px; color: var(--muted); padding-top: 8px; }
+  .foot a { color: var(--muted); }
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="top"><span id="place">Hamamatsu</span><span>Updated <span id="upd">–</span></span></div>
+<div class="wrap">
   <div class="now">
-    <div class="clock">
-      <div class="hm"><span id="hm">--:--</span><span class="ss" id="ss">:--</span></div>
-      <div class="dt" id="dt">&nbsp;</div>
-    </div>
-    <div class="wx">
-      <div class="row"><span class="ic" id="nowIcon">·</span><span class="tp" id="nowTemp">--</span></div>
-      <div class="cd" id="nowCond">Loading…</div>
-    </div>
+    <div class="place" id="place">Hamamatsu</div>
+    <div class="icon-big" id="nowIcon">·</div>
+    <div class="temp" id="nowTemp">--</div>
+    <div class="cond" id="nowCond">Loading…</div>
   </div>
   <ul class="days" id="days"></ul>
-  <div class="foot"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></div>
+  <div class="foot">Updated <span id="upd">–</span> · <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></div>
 </div>
 <script>
   const q = new URLSearchParams(location.search);
-  if (q.get("theme") === "dark" || q.get("theme") === "light") document.documentElement.dataset.theme = q.get("theme");
   const NAME = q.get("name") || "Hamamatsu";
   const LAT = q.get("lat") || "34.71", LON = q.get("lon") || "137.73";
+  // WMO weather codes -> [day icon, night icon, text]
   const W = {
     0:["☀️","🌙","Clear sky"], 1:["🌤️","🌙","Mainly clear"], 2:["⛅","☁️","Partly cloudy"], 3:["☁️","☁️","Overcast"],
     45:["🌫️","🌫️","Fog"], 48:["🌫️","🌫️","Rime fog"],
@@ -92,7 +65,7 @@
     95:["⛈️","⛈️","Thunderstorm"], 96:["⛈️","⛈️","Thunderstorm, hail"], 99:["⛈️","⛈️","Thunderstorm, hail"]
   };
   const w = c => W[c] || ["🌡️","🌡️","—"];
-  const r = n => Math.round(n) + "°";
+  const r = n => Math.round(n) + " °C";
 
   async function load() {
     const url = "https://api.open-meteo.com/v1/forecast?latitude=" + LAT + "&longitude=" + LON +
@@ -106,21 +79,21 @@
       const c = j.current, cw = w(c.weather_code);
       document.getElementById("place").textContent = NAME;
       document.getElementById("nowIcon").textContent = c.is_day ? cw[0] : cw[1];
-      document.getElementById("nowTemp").textContent = Math.round(c.temperature_2m) + " °C";
+      document.getElementById("nowTemp").textContent = r(c.temperature_2m);
       document.getElementById("nowCond").textContent = cw[2];
       const ul = document.getElementById("days"); ul.textContent = "";
       j.daily.time.forEach((t, k) => {
         const day = new Date(t + "T00:00:00").toLocaleDateString("en-US", { weekday: "short" });
-        const pp = j.daily.precipitation_probability_max[k];
         const li = document.createElement("li");
+        const pp = j.daily.precipitation_probability_max[k];
         li.innerHTML = '<span class="d"></span><span class="i"></span><span class="p"></span>' +
-          '<span class="t"><span class="hi"></span> <span class="lo"></span></span>';
+          '<span class="t"><div class="hi"></div><div class="lo"></div></span>';
         li.querySelector(".d").textContent = k === 0 ? "Today" : day;
         li.querySelector(".i").textContent = w(j.daily.weather_code[k])[0];
         li.querySelector(".i").title = w(j.daily.weather_code[k])[2];
-        li.querySelector(".p").textContent = pp != null ? "💧" + pp + "%" : "";
+        li.querySelector(".p").textContent = pp != null ? "💧 " + pp + "%" : "";
         li.querySelector(".hi").textContent = r(j.daily.temperature_2m_max[k]);
-        li.querySelector(".lo").textContent = "/ " + r(j.daily.temperature_2m_min[k]);
+        li.querySelector(".lo").textContent = r(j.daily.temperature_2m_min[k]);
         ul.appendChild(li);
       });
       document.getElementById("upd").textContent =
@@ -129,20 +102,6 @@
       document.getElementById("nowCond").textContent = "Weather unavailable, retrying soon";
     }
   }
-  // live clock in Japan time
-  function tick() {
-    const now = new Date();
-    const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tokyo", hour: "2-digit", minute: "2-digit",
-      second: "2-digit", hour12: false }).formatToParts(now);
-    const g = t => p.find(x => x.type === t).value;
-    document.getElementById("hm").textContent = g("hour") + ":" + g("minute");
-    document.getElementById("ss").textContent = ":" + g("second");
-    document.getElementById("dt").textContent = now.toLocaleDateString("en-US",
-      { timeZone: "Asia/Tokyo", weekday: "short", month: "short", day: "numeric" });
-  }
-  tick();
-  setInterval(tick, 1000);
-
   load();
   setInterval(load, 30 * 60 * 1000);
 </script>
